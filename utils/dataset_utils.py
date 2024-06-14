@@ -17,11 +17,13 @@ class TrainDataset(Dataset):
         self.args = args
         self.rs_ids = []
         self.hazy_ids = []
+        self.db_ids = []
+        self.sr_ids = []
         self.D = Degradation(args)
         self.de_temp = 0
         self.de_type = self.args.de_type
 
-        self.de_dict = {'denoise_15': 0, 'denoise_25': 1, 'denoise_50': 2, 'derain': 3, 'dehaze': 4}
+        self.de_dict = {'denoise_15': 0, 'denoise_25': 1, 'denoise_50': 2, 'derain': 3, 'dehaze': 4, 'deblur': 5, 'SR': 6}
 
         self._init_ids()
 
@@ -39,6 +41,10 @@ class TrainDataset(Dataset):
             self._init_rs_ids()
         if 'dehaze' in self.de_type:
             self._init_hazy_ids()
+        if 'deblur' in self.de_type:
+            self._init_db_ids()
+        if 'SR' in self.de_type:
+            self._init_sr_ids()
 
         random.shuffle(self.de_type)
 
@@ -75,6 +81,20 @@ class TrainDataset(Dataset):
 
         self.rl_counter = 0
         self.num_rl = len(self.rs_ids)
+        
+    def _init_db_ids(self):
+        db = self.args.data_file_dir + "blur/blurTrain.txt"
+        self.db_ids += [self.args.deblur_dir + id_.strip() for id_ in open(db)]
+
+        self.db_counter = 0
+        self.num_db = len(self.db_ids)
+        
+    def _init_sr_ids(self):
+        lq = self.args.data_file_dir + "SR/lqTrain.txt"
+        self.sr_ids += [self.args.sr_dir + id_.strip() for id_ in open(lq)]
+
+        self.sr_counter = 0
+        self.num_sr = len(self.sr_ids)
 
     def _crop_patch(self, img_1, img_2):
         H = img_1.shape[0]
@@ -97,7 +117,15 @@ class TrainDataset(Dataset):
         suffix = '.' + hazy_name.split('.')[-1]
         nonhazy_name = dir_name + name + suffix
         return nonhazy_name
+    
+    def _get_clean_name(self, blur_name):
+        gt_name = 'data/Train/Deblur/gt/' + blur_name.split('/')[-1]
+        return gt_name
 
+    def _get_sr_name(self, lq_name):
+        gt_name = 'data/Train/SR/gt/' + lq_name.split('/')[-1]
+        return gt_name
+    
     def __getitem__(self, _):
         de_id = self.de_dict[self.de_type[self.de_temp]]
 
@@ -149,6 +177,24 @@ class TrainDataset(Dataset):
                 self.hazy_counter = (self.hazy_counter + 1) % self.num_hazy
                 if self.hazy_counter == 0:
                     random.shuffle(self.hazy_ids)
+            elif de_id == 5:
+                # Deblur
+                degrad_img = crop_img(np.array(Image.open(self.db_ids[self.db_counter]).convert('RGB')), base=16)
+                clean_name = self._get_clean_name(self.db_ids[self.db_counter])
+                clean_img = crop_img(np.array(Image.open(clean_name).convert('RGB')), base=16)
+
+                self.db_counter = (self.db_counter + 1) % self.num_db
+                if self.db_counter == 0:
+                    random.shuffle(self.db_ids)
+            elif de_id == 6:
+                # SR
+                degrad_img = crop_img(np.array(Image.open(self.sr_ids[self.sr_counter]).convert('RGB')), base=16)
+                clean_name = self._get_clean_name(self.sr_ids[self.sr_counter])
+                clean_img = crop_img(np.array(Image.open(clean_name).convert('RGB')), base=16)
+
+                self.sr_counter = (self.sr_counter + 1) % self.num_sr
+                if self.sr_counter == 0:
+                    random.shuffle(self.sr_ids)
             degrad_patch_1, clean_patch_1 = random_augmentation(*self._crop_patch(degrad_img, clean_img))
             degrad_patch_2, clean_patch_2 = random_augmentation(*self._crop_patch(degrad_img, clean_img))
 

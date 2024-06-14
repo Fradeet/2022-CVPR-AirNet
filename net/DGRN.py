@@ -1,6 +1,7 @@
 import torch.nn as nn
 from .deform_conv import DCN_layer
 
+from net.upsample import Upsample
 
 def default_conv(in_channels, out_channels, kernel_size, bias=True):
     return nn.Conv2d(in_channels, out_channels, kernel_size, padding=(kernel_size // 2), bias=bias)
@@ -116,7 +117,7 @@ class DGRN(nn.Module):
 
         self.n_groups = 5
         n_blocks = 5
-        n_feats = 64
+        n_feats = opt.num_feats
         kernel_size = 3
 
         # head module
@@ -150,3 +151,50 @@ class DGRN(nn.Module):
         x = self.tail(res)
 
         return x
+    
+class DGRN_U(nn.Module):
+    def __init__(self, opt, conv=default_conv):
+        super(DGRN_U, self).__init__()
+
+        self.n_groups = 5
+        n_blocks = 5
+        n_feats = opt.num_feats
+        kernel_size = 3
+
+        # head module
+        modules_head = [conv(3, n_feats, kernel_size)]
+        self.head = nn.Sequential(*modules_head)
+
+        # body
+        modules_body = [
+            DGG(default_conv, n_feats, kernel_size, n_blocks) \
+            for _ in range(self.n_groups)
+        ]
+        modules_body.append(conv(n_feats, n_feats, kernel_size))
+        self.body = nn.Sequential(*modules_body)
+
+        # Upsample
+        self.upsample = Upsample(opt.scale, n_feats)
+
+        # tail
+        modules_tail = [conv(n_feats, 3, kernel_size)]
+        self.tail = nn.Sequential(*modules_tail)
+
+    def forward(self, x, inter):
+        # head
+        x = self.head(x)
+
+        # body
+        res = x
+        for i in range(self.n_groups):
+            res = self.body[i](res, inter)
+        res = self.body[-1](res)
+        res = res + x
+
+        res = self.upsample(res)
+
+        # tail
+        x = self.tail(res)
+
+        return x
+

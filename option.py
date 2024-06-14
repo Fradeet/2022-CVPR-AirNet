@@ -27,5 +27,20 @@ parser.add_argument('--dehaze_dir', type=str, default='data/Train/Dehaze/',
 parser.add_argument('--output_path', type=str, default="output/", help='output save path')
 parser.add_argument('--ckpt_path', type=str, default="ckpt/Denoise/", help='checkpoint save path')
 
+parser.add_argument('--deblur_dir', type=str, default='data/Train/Deblur/',
+                    help='where training images of debluring saves.')
+parser.add_argument('--sr_dir', type=str, default='data/Train/SR/',
+                    help='where training images of SR saves.')
+parser.add_argument('--scale', type=int, default=2,
+                    help='SR scales.')
+parser.add_argument('--num_feats', type=int, default=64,
+                    help='')
+
 options = parser.parse_args()
 options.batch_size = len(options.de_type)
+
+
+''' Deblur
+--de_type \
+    ['deblur'] \
+'''
