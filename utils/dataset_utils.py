@@ -322,7 +322,51 @@ class DerainDehazeDataset(Dataset):
 
     def __len__(self):
         return self.length
+    
+class SRDataset(Dataset):
+    def __init__(self, args, scale:int=2, task:str="Set5"):
+        super(SRDataset, self).__init__()
+        self.ids = []
+        self.task_idx = 0
+        self.args = args
 
+        self.toTensor = ToTensor()
+        
+        self.scale = scale
+        self.task = task
+        
+        self._init_input_ids()
+
+    def _init_input_ids(self):
+        self.ids = []
+        name_list = os.listdir(self.args.SR_path + 'lq/' +
+                               self.task + "/" +
+                               "x" + str(self.scale) + "/")
+        self.ids += [self.args.SR_path + 'lq/' +
+                     self.task + "/" +
+                    "x" + str(self.scale) + "/" + id_
+                    for id_ in name_list]
+
+        self.length = len(self.ids)
+
+    def _get_gt_path(self, degraded_name):
+        gt_name = self.args.SR_path + "gt/" + self.task + "/" + degraded_name.split('/')[-1]
+        return gt_name
+
+    def __getitem__(self, idx):
+        degraded_path = self.ids[idx]
+        clean_path = self._get_gt_path(degraded_path)
+
+        degraded_img = crop_img(np.array(Image.open(degraded_path).convert('RGB')), base=1)  # Disable 16 倍数
+        clean_img = crop_img(np.array(Image.open(clean_path).convert('RGB')), base=1)
+
+        clean_img, degraded_img = self.toTensor(clean_img), self.toTensor(degraded_img)
+        degraded_name = degraded_path.split('/')[-1][:-4]
+
+        return [degraded_name], degraded_img, clean_img
+
+    def __len__(self):
+        return self.length
 
 class TestSpecificDataset(Dataset):
     def __init__(self, args):

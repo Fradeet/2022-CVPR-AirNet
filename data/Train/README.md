@@ -24,3 +24,7 @@ For denoise dir, you could just put the clean images (e.g,  [BSD400](https://dri
 - de_dict 6
 - lq 与 gt 文件名字相同
 - 图片截取 crop 添加了倍率以适应超分辨率任务
+- 注意 x4 的时候可能 patch_size 需要调整
+- 测试图片，gt 图片共用，lq 有倍率，名字相等
+- 放置测试图片后要在 test.py 中修改
+- 测试时手动关闭了图片长度必须为 16 的倍数
