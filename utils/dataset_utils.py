@@ -7,6 +7,7 @@ import numpy as np
 from torch.utils.data import Dataset
 from torchvision.transforms import ToPILImage, Compose, RandomCrop, ToTensor
 
+# from utils.generate_blur_pic import LRImageGenerator
 from utils.image_utils import random_augmentation, crop_img
 from utils.degradation_utils import Degradation
 
@@ -33,6 +34,13 @@ class TrainDataset(Dataset):
         ])
 
         self.toTensor = ToTensor()
+        
+        # # TODO if SR
+        # if self.de_dict[self.de_type[self.de_temp]] == 6 and self.args.is_unpreprocess_image:
+        #     # Init blur
+        #     self.blur_generator = LRImageGenerator(up_scale=self.args.scale,
+        #                                            mod_scale=self.args.scale,
+        #                                            pca_matrix_path=self.args.pca_matrix_path)
 
     def _init_ids(self):
         if 'denoise_15' in self.de_type or 'denoise_25' in self.de_type or 'denoise_50' in self.de_type:
@@ -96,14 +104,17 @@ class TrainDataset(Dataset):
         self.sr_counter = 0
         self.num_sr = len(self.sr_ids)
 
-    def _crop_patch(self, img_1, img_2):
+    def _crop_patch(self, img_1, img_2, scale:int=1):
+        ''' scale means the scale of the input image, 1 means no scale/SR '''
         H = img_1.shape[0]
         W = img_1.shape[1]
         ind_H = random.randint(0, H - self.args.patch_size)
         ind_W = random.randint(0, W - self.args.patch_size)
 
-        patch_1 = img_1[ind_H:ind_H + self.args.patch_size, ind_W:ind_W + self.args.patch_size]
-        patch_2 = img_2[ind_H:ind_H + self.args.patch_size, ind_W:ind_W + self.args.patch_size]
+        patch_1 = img_1[ind_H:ind_H + self.args.patch_size,
+                        ind_W:ind_W + self.args.patch_size]
+        patch_2 = img_2[ind_H:ind_H + self.args.patch_size * scale,
+                        ind_W:ind_W + self.args.patch_size * scale]
 
         return patch_1, patch_2
 
@@ -188,15 +199,26 @@ class TrainDataset(Dataset):
                     random.shuffle(self.db_ids)
             elif de_id == 6:
                 # SR
-                degrad_img = crop_img(np.array(Image.open(self.sr_ids[self.sr_counter]).convert('RGB')), base=16)
-                clean_name = self._get_clean_name(self.sr_ids[self.sr_counter])
-                clean_img = crop_img(np.array(Image.open(clean_name).convert('RGB')), base=16)
+                
+                if self.args.is_unpreprocess_image:
+                    # Use SRMD Add blur # TODO Choose sig level
+                    # degrad_img = self.blur_generator.get_blur_image(self.sr_ids[self.sr_counter], 1)
+                    pass
+                    
+                else:
+                    degrad_img = crop_img(np.array(Image.open(self.sr_ids[self.sr_counter]).convert('RGB')), base=16)
+                    clean_name = self._get_clean_name(self.sr_ids[self.sr_counter])
+                    clean_img = crop_img(np.array(Image.open(clean_name).convert('RGB')), base=16)
 
                 self.sr_counter = (self.sr_counter + 1) % self.num_sr
                 if self.sr_counter == 0:
                     random.shuffle(self.sr_ids)
-            degrad_patch_1, clean_patch_1 = random_augmentation(*self._crop_patch(degrad_img, clean_img))
-            degrad_patch_2, clean_patch_2 = random_augmentation(*self._crop_patch(degrad_img, clean_img))
+            if de_id == 6:  # SR
+                degrad_patch_1, clean_patch_1 = random_augmentation(*self._crop_patch(degrad_img, clean_img, self.args.scale))
+                degrad_patch_2, clean_patch_2 = random_augmentation(*self._crop_patch(degrad_img, clean_img, self.args.scale))
+            else:
+                degrad_patch_1, clean_patch_1 = random_augmentation(*self._crop_patch(degrad_img, clean_img))
+                degrad_patch_2, clean_patch_2 = random_augmentation(*self._crop_patch(degrad_img, clean_img))
 
         clean_patch_1, clean_patch_2 = self.toTensor(clean_patch_1), self.toTensor(clean_patch_2)
         degrad_patch_1, degrad_patch_2 = self.toTensor(degrad_patch_1), self.toTensor(degrad_patch_2)

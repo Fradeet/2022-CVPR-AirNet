@@ -22,3 +22,5 @@ For denoise dir, you could just put the clean images (e.g,  [BSD400](https://dri
 - DGRN 中改了 DGRN_U 加了 Upsample
 - option 中添加了 scale 与 num_feats
 - de_dict 6
+- lq 与 gt 文件名字相同
+- 图片截取 crop 添加了倍率以适应超分辨率任务
