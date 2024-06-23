@@ -113,8 +113,8 @@ class TrainDataset(Dataset):
 
         patch_1 = img_1[ind_H:ind_H + self.args.patch_size,
                         ind_W:ind_W + self.args.patch_size]
-        patch_2 = img_2[ind_H:ind_H + self.args.patch_size * scale,
-                        ind_W:ind_W + self.args.patch_size * scale]
+        patch_2 = img_2[ind_H * scale:ind_H * scale + self.args.patch_size * scale,
+                        ind_W * scale:ind_W * scale + self.args.patch_size * scale]
 
         return patch_1, patch_2
 
@@ -206,9 +206,9 @@ class TrainDataset(Dataset):
                     pass
                     
                 else:
-                    degrad_img = crop_img(np.array(Image.open(self.sr_ids[self.sr_counter]).convert('RGB')), base=16)
+                    degrad_img = crop_img(np.array(Image.open(self.sr_ids[self.sr_counter]).convert('RGB')), base=1)  # Disable
                     clean_name = self._get_clean_name(self.sr_ids[self.sr_counter])
-                    clean_img = crop_img(np.array(Image.open(clean_name).convert('RGB')), base=16)
+                    clean_img = crop_img(np.array(Image.open(clean_name).convert('RGB')), base=1)
 
                 self.sr_counter = (self.sr_counter + 1) % self.num_sr
                 if self.sr_counter == 0:
@@ -324,6 +324,12 @@ class DerainDehazeDataset(Dataset):
         return self.length
     
 class SRDataset(Dataset):
+    ''' Using in Test SR task. 
+    ## folder structure:
+    gt: gt/Set5/xxx.png
+    lq: lq/Set5/x2/xxx.png
+    gt and lq pair has same name.
+    '''
     def __init__(self, args, scale:int=2, task:str="Set5"):
         super(SRDataset, self).__init__()
         self.ids = []

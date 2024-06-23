@@ -61,6 +61,13 @@ def test_Derain_Dehaze(net, dataset, task="derain"):
         print("PSNR: %.2f, SSIM: %.4f" % (psnr.avg, ssim.avg))
 
 def test_SR(net, dataset, task="Set5", scale:int=2):
+    '''
+    Test SR task, each dataset image is tested.
+    net: PyTorch model,
+    dataset: PyTorch Dataset, first is lq and second is gt,
+    task: str, just task name,
+    scale: int, scale factor.
+    '''
     output_path = opt.output_path + task + '/x' + str(scale) + '/'
     # subprocess.check_output(['mkdir', '-p', output_path])  # Disable on Windows
 

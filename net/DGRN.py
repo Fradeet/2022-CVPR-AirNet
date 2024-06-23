@@ -153,6 +153,7 @@ class DGRN(nn.Module):
         return x
     
 class DGRN_U(nn.Module):
+    ''' 'U' means upsample after each group'''
     def __init__(self, opt, conv=default_conv):
         super(DGRN_U, self).__init__()
 
@@ -160,6 +161,7 @@ class DGRN_U(nn.Module):
         n_blocks = 5
         n_feats = opt.num_feats
         kernel_size = 3
+        upscale = opt.scale
 
         # head module
         modules_head = [conv(3, n_feats, kernel_size)]
@@ -174,10 +176,14 @@ class DGRN_U(nn.Module):
         self.body = nn.Sequential(*modules_body)
 
         # Upsample
-        self.upsample = Upsample(opt.scale, n_feats)
+        # self.upsample = Upsample(upscale, n_feats)
 
         # tail
-        modules_tail = [conv(n_feats, 3, kernel_size)]
+        # modules_tail = [conv(n_feats, 3, kernel_size)]
+        modules_tail = [
+            nn.Conv2d(n_feats, 3 * upscale * upscale, kernel_size=3, stride=1, padding=1),
+            nn.PixelShuffle(upscale)
+        ]
         self.tail = nn.Sequential(*modules_tail)
 
     def forward(self, x, inter):
@@ -191,7 +197,7 @@ class DGRN_U(nn.Module):
         res = self.body[-1](res)
         res = res + x
 
-        res = self.upsample(res)
+        # res = self.upsample(res)
 
         # tail
         x = self.tail(res)
